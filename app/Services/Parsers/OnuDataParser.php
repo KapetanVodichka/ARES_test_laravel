@@ -51,21 +51,26 @@ class OnuDataParser implements ParserInterface
 
     private function parseRecord(string $record): array
     {
-        $columns = preg_split('/\s+/', trim($record));
+        $columns = preg_split('/\s{2,}/', trim($record));
+        $columns = array_map('trim', $columns);
+
+        if (isset($columns[1])) {
+            $columns[1] = str_replace(' ', '', $columns[1]);
+        }
+        if (isset($columns[4])) {
+            $columns[4] = str_replace(' ', '', $columns[4]);
+        }
+
+        if (count($columns) === 7 && strpos($columns[5], ' ') !== false) {
+            $parts = preg_split('/\s+/', $columns[5]);
+            if (count($parts) === 2) {
+                $columns[5] = $parts[0];
+                array_splice($columns, 6, 0, $parts[1]);
+            }
+        }
+
         if (count($columns) < 7) {
             return [];
-        }
-
-        $vendorId = $columns[1] ?? '';
-        if (isset($columns[2]) && strlen($columns[1]) === 3 && preg_match('/^[A-Z]$/', $columns[2])) {
-            $vendorId .= $columns[2];
-            array_splice($columns, 2, 1);
-        }
-
-        $sn = $columns[3] ?? '';
-        if (isset($columns[4]) && !in_array($columns[4], ['N/A', 'active', 'off-line', 'disabled']) && strpos($columns[4], ':') !== false) {
-            $sn .= $columns[4];
-            array_splice($columns, 4, 1);
         }
 
         $activeTimeIndex = -1;
@@ -75,16 +80,18 @@ class OnuDataParser implements ParserInterface
                 break;
             }
         }
+        $activeTime = $activeTimeIndex !== -1 ? implode(' ', array_slice($columns, $activeTimeIndex)) : 'N/A';
 
         return [
-            'interface' => $columns[0] ?? '',
-            'vendor_id' => $vendorId,
-            'model_id' => $columns[2] ?? 'N/A',
-            'sn' => $sn,
-            'loid' => $columns[4] ?? 'N/A',
-            'status' => $columns[5] ?? 'N/A',
-            'config_status' => $columns[6] ?? 'N/A',
-            'active_time' => $activeTimeIndex !== -1 ? implode(' ', array_slice($columns, $activeTimeIndex)) : 'N/A',
+            'interface'      => $columns[0] ?? '',
+            'vendor_id'      => $columns[1] ?? '',
+            'model_id'       => $columns[2] ?? 'N/A',
+            'sn'             => $columns[3] ?? '',
+            'loid'           => $columns[4] ?? 'N/A',
+            'status'         => $columns[5] ?? 'N/A',
+            'config_status'  => $columns[6] ?? 'N/A',
+            'active_time'    => $activeTime,
         ];
     }
+
 }
